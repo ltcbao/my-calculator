@@ -117,7 +117,7 @@
                 <button data-paren="(" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">(</button>
                 <button data-paren=")" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">)</button>
                 <button data-key="%" data-action="percent" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">%</button>
-                <button data-key="Backspace" data-action="clear-entry" class="btn btn-pink text-xl font-semibold w-full h-14 rounded-full">CE</button>
+                <button data-action="clear-entry" class="btn btn-pink text-xl font-semibold w-full h-14 rounded-full">CE</button>
 
                 <button data-key="7" data-number="7" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">7</button>
                 <button data-key="8" data-number="8" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">8</button>
@@ -443,7 +443,16 @@
         const clearEntry = () => {
             currentOperand = '0';
             updateDisplay();
-        }
+        };
+
+        const deleteLastDigit = () => {
+            if (shouldResetScreen) return;
+            if (currentOperand.length > 1) {
+                currentOperand = currentOperand.slice(0, -1);
+            } else {
+                currentOperand = '0';
+            }
+        };
 
         // --- HISTORY LOGIC ---
         const addHistory = (expression, result) => {
@@ -558,6 +567,14 @@
             if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             
             let key = e.key;
+            
+            if (key === 'Backspace') {
+                e.preventDefault();
+                deleteLastDigit();
+                updateDisplay();
+                return;
+            }
+
              if(key === '(' || key === ')') {
                 const parenBtn = document.querySelector(`[data-paren="${key}"]`);
                 if(parenBtn){
