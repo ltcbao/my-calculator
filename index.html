@@ -36,17 +36,18 @@
         .btn-purple { background-color: #C6B2E4; color: #4A5568; }
         .btn-dark-purple { background-color: #A898D5; color: white; }
         .btn-equals { background-color: #8878B2; color: white; }
-        .memory-indicator {
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .memory-indicator.active {
-            opacity: 1;
-        }
+        
         #notes-area {
             background-color: #FDF2D8;
             color: #4A5568;
             resize: none;
+        }
+        .reminder-modal {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
         }
     </style>
 </head>
@@ -56,7 +57,6 @@
         <!-- Máy tính -->
         <div class="calculator w-full max-w-sm p-4 sm:p-6 rounded-3xl space-y-4 flex-shrink-0">
             <div class="display w-full rounded-xl p-4 text-right overflow-hidden">
-                <div id="memory-indicator" class="memory-indicator text-left text-xs font-bold">M</div>
                 <div id="previous-operand" class="text-xl h-7">&nbsp;</div>
                 <div id="current-operand" class="text-4xl font-bold break-words">0</div>
             </div>
@@ -94,11 +94,35 @@
 
         <!-- Khu vực ghi chú -->
         <div class="notes-container w-full max-w-sm p-4 sm:p-6 rounded-3xl">
-            <h2 class="text-2xl font-bold text-center mb-4" style="color: #4A5568;">Ghi chú</h2>
-            <textarea id="notes-area" class="w-full h-[360px] sm:h-[408px] p-3 rounded-xl border-none focus:ring-2 focus:ring-[#A898D5]" placeholder="Nhập ghi chú của bạn..."></textarea>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold" style="color: #4A5568;">Ghi chú</h2>
+                <div class="flex items-center">
+                    <span class="text-sm font-medium text-gray-700 mr-2">Nhắc nhở</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="reminder-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#A898D5]"></div>
+                    </label>
+                </div>
+            </div>
+            <textarea id="notes-area" class="w-full h-[334px] sm:h-[382px] p-3 rounded-xl border-none focus:ring-2 focus:ring-[#A898D5]" placeholder="Nhập ghi chú của bạn..."></textarea>
             <button id="clear-notes" class="btn btn-pink w-full mt-4 py-3 rounded-full text-lg font-semibold">Xóa Ghi Chú</button>
         </div>
     </main>
+
+    <!-- Modal Nhắc nhở -->
+    <div id="reminder-overlay" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 transition-opacity duration-300">
+        <div class="reminder-modal bg-[#FDF2D8] p-8 rounded-3xl shadow-lg text-center max-w-xs w-full mx-4">
+            <svg class="w-24 h-24 mx-auto mb-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C7.03 2 3 7.98 3 12.25C3 17.52 12 22 12 22C12 22 21 17.52 21 12.25C21 7.98 16.97 2 12 2Z" fill="#A898D5"/>
+                <circle cx="9.5" cy="11.5" r="1.2" fill="white"/>
+                <circle cx="14.5" cy="11.5" r="1.2" fill="white"/>
+                <path d="M9 16C9.8562 17.0343 10.8856 17.5714 12 17.5714C13.1144 17.5714 14.1438 17.0343 15 16" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <p class="text-xl font-semibold text-[#4A5568] mb-6">Nhớ uống nước nha!</p>
+            <button id="close-reminder" class="btn btn-pink w-full py-3 rounded-full text-lg font-semibold">Đã hiểu!</button>
+        </div>
+    </div>
+
 
     <script>
         // --- CHỌN CÁC PHẦN TỬ DOM ---
@@ -215,7 +239,6 @@
         });
         
         function handleKeyPress(e) {
-            // NẾU ĐANG NHẬP TRONG KHU VỰC GHI CHÚ, KHÔNG CHẠY LOGIC MÁY TÍNH
             if (document.activeElement === notesArea) {
                 return;
             }
@@ -259,6 +282,57 @@
         clearNotesBtn.addEventListener('click', () => {
             notesArea.value = '';
             localStorage.removeItem('pastelCalcNotes');
+        });
+
+        // --- LOGIC NHẮC NHỞ UỐNG NƯỚC ---
+        const reminderOverlay = document.getElementById('reminder-overlay');
+        const closeReminderBtn = document.getElementById('close-reminder');
+        const reminderToggle = document.getElementById('reminder-toggle');
+        let reminderInterval = null;
+        const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
+
+        function showReminder() {
+            reminderOverlay.classList.remove('hidden');
+        }
+
+        function hideReminder() {
+            reminderOverlay.classList.add('hidden');
+        }
+        
+        function startReminder() {
+            if (reminderInterval) clearInterval(reminderInterval);
+            reminderInterval = setInterval(showReminder, THIRTY_MINUTES_IN_MS);
+        }
+
+        function stopReminder() {
+            clearInterval(reminderInterval);
+            reminderInterval = null;
+        }
+
+        // Tải cài đặt từ localStorage khi trang được mở
+        // Mặc định là bật nếu chưa có cài đặt
+        let isReminderEnabled = localStorage.getItem('reminderEnabled') !== 'false';
+        reminderToggle.checked = isReminderEnabled;
+        if (isReminderEnabled) {
+            startReminder();
+        }
+
+        // Lắng nghe sự kiện thay đổi của nút gạt
+        reminderToggle.addEventListener('change', () => {
+            if (reminderToggle.checked) {
+                startReminder();
+                localStorage.setItem('reminderEnabled', 'true');
+            } else {
+                stopReminder();
+                localStorage.setItem('reminderEnabled', 'false');
+            }
+        });
+
+        closeReminderBtn.addEventListener('click', hideReminder);
+        reminderOverlay.addEventListener('click', (event) => {
+            if (event.target === reminderOverlay) {
+                hideReminder();
+            }
         });
     </script>
 </body>
