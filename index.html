@@ -68,6 +68,27 @@
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
         .tab-btn { border-bottom: 3px solid transparent; }
         .tab-btn.active { border-bottom-color: var(--tab-active-border); font-weight: 600; }
+        
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--btn-dark-purple);
+            color: var(--text-light);
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            z-index: 100;
+            opacity: 0;
+            animation: fade-in-out 3s ease-in-out forwards;
+        }
+
+        @keyframes fade-in-out {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            15% { opacity: 1; transform: translate(-50%, 0); }
+            85% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, 20px); }
+        }
     </style>
 </head>
 <body class="p-4">
@@ -78,44 +99,47 @@
         </button>
     </header>
 
-    <main class="grid grid-cols-1 xl:grid-cols-3 gap-8 w-full max-w-7xl mx-auto">
+    <main class="grid grid-cols-1 xl:grid-cols-3 gap-8 w-full max-w-7xl mx-auto xl:items-start">
         <!-- Cột 1: Máy tính -->
         <div class="calculator container-bg w-full max-w-md mx-auto p-4 sm:p-6 rounded-3xl space-y-4">
-            <div class="display group relative w-full rounded-xl p-6 text-right overflow-hidden" title="Nhấp chuột phải để dán">
+            <div class="display group relative w-full rounded-xl p-6 text-right overflow-hidden">
                 <div class="absolute top-2 left-4 text-lg font-bold" id="memory-indicator"></div>
-                <div id="full-expression-display" class="text-2xl h-8 opacity-70 truncate">&nbsp;</div>
+                <div id="full-expression-display" class="text-2xl h-12 opacity-70 whitespace-nowrap overflow-hidden text-ellipsis">&nbsp;</div>
                 <div id="current-operand" class="text-5xl font-bold break-words">0</div>
                 <button id="copy-btn" class="absolute top-1/2 right-3 -translate-y-1/2 p-2 rounded-full hover:bg-black/10 transition-opacity duration-300 opacity-0 group-hover:opacity-100" title="Sao chép kết quả"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
             </div>
             <div class="grid grid-cols-4 gap-3 sm:gap-4">
-                <button data-memory="mc" class="btn btn-purple text-lg font-semibold w-full h-14 sm:h-16 rounded-full">MC</button>
-                <button data-memory="mr" class="btn btn-purple text-lg font-semibold w-full h-14 sm:h-16 rounded-full">MR</button>
-                <button data-memory="m+" class="btn btn-purple text-lg font-semibold w-full h-14 sm:h-16 rounded-full">M+</button>
-                <button data-memory="m-" class="btn btn-purple text-lg font-semibold w-full h-14 sm:h-16 rounded-full">M-</button>
+                <button data-memory="mc" class="btn btn-purple text-lg font-semibold w-full h-14 rounded-full">MC</button>
+                <button data-memory="mr" class="btn btn-purple text-lg font-semibold w-full h-14 rounded-full">MR</button>
+                <button data-memory="m+" class="btn btn-purple text-lg font-semibold w-full h-14 rounded-full">M+</button>
+                <button data-memory="m-" class="btn btn-purple text-lg font-semibold w-full h-14 rounded-full">M-</button>
                 
-                <button data-key="Backspace" data-action="clear-entry" class="btn btn-pink text-xl font-semibold w-full h-16 sm:h-20 rounded-full">CE</button>
-                <button data-key="Escape" data-action="all-clear" class="btn btn-pink text-xl font-semibold w-full h-16 sm:h-20 rounded-full">AC</button>
-                <button data-key="%" data-action="percent" class="btn btn-purple text-xl font-semibold w-full h-16 sm:h-20 rounded-full">%</button>
-                <button data-key="/" data-operator="÷" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">÷</button>
-                
+                <button data-paren="(" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">(</button>
+                <button data-paren=")" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">)</button>
+                <button data-key="%" data-action="percent" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">%</button>
+                <button data-key="Backspace" data-action="clear-entry" class="btn btn-pink text-xl font-semibold w-full h-14 rounded-full">CE</button>
+
                 <button data-key="7" data-number="7" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">7</button>
                 <button data-key="8" data-number="8" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">8</button>
                 <button data-key="9" data-number="9" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">9</button>
-                <button data-key="*" data-operator="×" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">×</button>
-
+                <button data-key="/" data-operator="÷" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">÷</button>
+                
                 <button data-key="4" data-number="4" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">4</button>
                 <button data-key="5" data-number="5" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">5</button>
                 <button data-key="6" data-number="6" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">6</button>
-                <button data-key="-" data-operator="-" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">−</button>
+                <button data-key="*" data-operator="×" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">×</button>
 
                 <button data-key="1" data-number="1" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">1</button>
                 <button data-key="2" data-number="2" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">2</button>
                 <button data-key="3" data-number="3" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">3</button>
-                <button data-key="+" data-operator="+" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">+</button>
+                <button data-key="-" data-operator="-" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">−</button>
 
-                <button data-key="0" data-number="0" class="btn btn-cream col-span-2 text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">0</button>
+                <button data-key="Escape" data-action="all-clear" class="btn btn-pink text-xl font-semibold w-full h-16 sm:h-20 rounded-full">AC</button>
+                <button data-key="0" data-number="0" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">0</button>
                 <button data-key="." data-action="decimal" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">.</button>
-                <button data-key="Enter" data-action="equals" class="btn btn-equals text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">=</button>
+                <button data-key="+" data-operator="+" class="btn btn-dark-purple text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">+</button>
+                
+                <button data-key="Enter" data-action="equals" class="btn btn-equals col-span-4 text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">=</button>
             </div>
         </div>
 
@@ -136,13 +160,13 @@
             </div>
             
             <div id="history-content" class="tab-content flex-grow flex flex-col">
-                 <div id="history-list" class="flex-grow h-[450px] overflow-y-auto pr-2">
+                 <div id="history-list" class="flex-grow h-[580px] overflow-y-auto pr-2">
                     <p class="text-center italic">Chưa có lịch sử tính toán.</p>
                  </div>
                  <button id="clear-history" class="btn btn-pink w-full mt-4 py-3 rounded-full text-lg font-semibold">Xóa Lịch sử</button>
             </div>
 
-            <div id="notes-content" class="tab-content hidden flex-grow">
+            <div id="notes-content" class="tab-content hidden flex-grow h-[580px]">
                 <textarea id="notes-textarea" class="w-full h-full p-3 rounded-xl border-none focus:ring-2 focus:ring-custom input-bg resize-none" placeholder="Nhập ghi chú của bạn ở đây..."></textarea>
             </div>
         </div>
@@ -224,6 +248,38 @@
         
         // --- NOTES STATE ---
         const notesTextarea = document.getElementById('notes-textarea');
+        
+        // --- UTILITY FUNCTIONS ---
+        const showToast = (message) => {
+            const existingToast = document.querySelector('.toast');
+            if(existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.className = 'toast';
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        };
+        
+        const copyToClipboard = (text) => {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Đã sao chép kết quả!');
+            } catch (err) {
+                console.error('Không thể sao chép', err);
+                showToast('Lỗi sao chép!');
+            }
+            document.body.removeChild(textArea);
+        };
+
 
         // --- FORMATTING ---
         const formatNumber = (numberStr) => {
@@ -247,12 +303,21 @@
             currentOperandEl.innerText = formatNumber(currentOperand);
             adjustFontSize();
             
-            fullExpressionEl.innerText = fullExpression.map(item => {
+            const expressionText = fullExpression.map(item => {
                 if (!isNaN(parseFloat(item.replace(',', '.')))) {
                     return formatNumber(item);
                 }
                 return item;
             }).join(' ');
+
+            fullExpressionEl.innerText = expressionText;
+            
+            // Add tooltip if text is overflowing
+            if (fullExpressionEl.scrollWidth > fullExpressionEl.clientWidth) {
+                fullExpressionEl.title = expressionText;
+            } else {
+                fullExpressionEl.title = '';
+            }
 
             memoryIndicator.innerText = memory !== 0 ? 'M' : '';
         };
@@ -270,19 +335,62 @@
         };
 
         const chooseOperation = (operator) => {
-            if(currentOperand === 'Lỗi') allClear();
-            if (currentOperand === '' || currentOperand === '0' && fullExpression.length > 0 && isNaN(fullExpression[fullExpression.length - 1])) {
+            if (currentOperand === 'Lỗi') { allClear(); return; }
+
+            const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+            
+            if (['+', '-', '×', '÷'].includes(lastItem) && currentOperand === '0') {
                 fullExpression[fullExpression.length - 1] = operator;
+            } else if (lastItem === ')') {
+                fullExpression.push(operator);
             } else {
-                 fullExpression.push(currentOperand);
-                 fullExpression.push(operator);
+                fullExpression.push(currentOperand);
+                fullExpression.push(operator);
             }
+
             currentOperand = '0';
             shouldResetScreen = false;
+        };
+
+        const handleParenthesis = (paren) => {
+            if (paren === '(') {
+                const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+
+                if (currentOperand !== '0' && !shouldResetScreen) {
+                    fullExpression.push(currentOperand);
+                    fullExpression.push('×');
+                } else if (lastItem === ')' || (!['+', '-', '×', '÷', '('].includes(lastItem) && lastItem !== null)) {
+                    fullExpression.push('×');
+                }
+                
+                fullExpression.push('(');
+                currentOperand = '0';
+                shouldResetScreen = false;
+            } else { // paren is ')'
+                const openParens = fullExpression.filter(x => x === '(').length;
+                const closeParens = fullExpression.filter(x => x === ')').length;
+                if (openParens <= closeParens) return;
+
+                const lastItem = fullExpression[fullExpression.length - 1];
+                if (['+', '-', '×', '÷', '('].includes(lastItem)) return;
+
+                fullExpression.push(currentOperand);
+                fullExpression.push(')');
+                currentOperand = '0';
+                shouldResetScreen = true;
+            }
         };
         
         const evaluateExpression = (expressionArr) => {
              try {
+                // Auto-close any open parentheses
+                let openParens = expressionArr.filter(x => x === '(').length;
+                let closeParens = expressionArr.filter(x => x === ')').length;
+                while(openParens > closeParens){
+                    expressionArr.push(')');
+                    closeParens++;
+                }
+
                 let expressionStr = expressionArr.join(' ')
                     .replace(/÷/g, '/')
                     .replace(/×/g, '*')
@@ -297,17 +405,22 @@
         }
 
         const compute = () => {
-            if (fullExpression.length < 2) return;
+            const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+            if (fullExpression.length === 0 && currentOperand === '0') return;
+
+            // Do not push the current operand if the expression just ended with a parenthesis
+            if (lastItem !== ')') {
+                 fullExpression.push(currentOperand);
+            }
             
-            fullExpression.push(currentOperand);
-            const finalExpressionStr = fullExpression.map(item => {
-                 if (!isNaN(parseFloat(item.replace(',', '.')))) return formatNumber(item);
-                 return item;
-            }).join(' ');
+            const expressionToEvaluate = [...fullExpression];
+            const result = evaluateExpression(expressionToEvaluate);
 
-            const result = evaluateExpression([...fullExpression]);
-
-            if (result !== 'Error') {
+            if (result !== 'Error' && result !== undefined) {
+                 const finalExpressionStr = expressionToEvaluate.map(item => {
+                    if (!isNaN(parseFloat(item.replace(',', '.')))) return formatNumber(item);
+                    return item;
+                 }).join(' ');
                  const formattedResult = result.toString().replace('.', ',');
                  addHistory(`${finalExpressionStr} =`, formatNumber(formattedResult));
                  currentOperand = formattedResult;
@@ -323,10 +436,13 @@
             currentOperand = '0';
             fullExpression = [];
             shouldResetScreen = false;
+            memory = 0;
+            updateDisplay();
         };
         
         const clearEntry = () => {
             currentOperand = '0';
+            updateDisplay();
         }
 
         // --- HISTORY LOGIC ---
@@ -343,14 +459,22 @@
                 return;
             }
             historyListEl.innerHTML = history.map(item => `
-                <div class="history-item p-2 rounded-lg cursor-pointer" onclick="useHistoryValue('${item.result}')">
+                <div class="history-item p-2 rounded-lg cursor-pointer" data-result="${item.result}">
                     <div class="text-sm opacity-70">${item.expression}</div>
                     <div class="font-bold text-lg text-right">${item.result}</div>
                 </div>
             `).join('');
+
+            document.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', () => useHistoryValue(item.dataset.result));
+                item.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    copyToClipboard(item.dataset.result);
+                });
+            });
         };
         
-        window.useHistoryValue = (value) => {
+        const useHistoryValue = (value) => {
              currentOperand = value.replace(/\./g, '').replace(',', '.');
              fullExpression = [];
              updateDisplay();
@@ -365,13 +489,23 @@
         // --- MEMORY LOGIC ---
         const handleMemory = (action) => {
             let val = parseFloat(currentOperand.replace(/\./g, '').replace(',', '.'));
-            if (isNaN(val)) return;
 
             switch(action) {
-                case 'mc': memory = 0; break;
-                case 'mr': currentOperand = memory.toString().replace('.', ','); shouldResetScreen = true; break;
-                case 'm+': memory += val; break;
-                case 'm-': memory -= val; break;
+                case 'mc': 
+                    memory = 0; 
+                    break;
+                case 'mr': 
+                    if (memory !== 0) {
+                        currentOperand = memory.toString().replace('.', ','); 
+                        shouldResetScreen = true; 
+                    }
+                    break;
+                case 'm+': 
+                    if (!isNaN(val)) memory += val; 
+                    break;
+                case 'm-': 
+                    if (!isNaN(val)) memory -= val; 
+                    break;
             }
             localStorage.setItem('calcMemory', memory);
             updateDisplay();
@@ -402,12 +536,13 @@
 
         // --- EVENT LISTENERS ---
         calculator.addEventListener('click', (e) => {
-            const { number, operator, action, memory: memAction } = e.target.dataset;
+            const { number, operator, action, memory: memAction, paren } = e.target.dataset;
             if (number) { appendNumber(number); updateDisplay(); }
             if (operator) { chooseOperation(operator); updateDisplay(); }
+            if (paren) { handleParenthesis(paren); updateDisplay(); }
             if (action === 'equals') { compute(); updateDisplay(); }
-            if (action === 'all-clear') { allClear(); updateDisplay(); }
-            if (action === 'clear-entry') { clearEntry(); updateDisplay(); }
+            if (action === 'all-clear') { allClear(); }
+            if (action === 'clear-entry') { clearEntry(); }
             if (action === 'decimal') { appendNumber('.'); updateDisplay(); }
             if (action === 'percent') {
                 if(currentOperand !== '0'){
@@ -422,7 +557,18 @@
         document.addEventListener('keydown', (e) => {
             if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             
-            const key = e.key;
+            let key = e.key;
+             if(key === '(' || key === ')') {
+                const parenBtn = document.querySelector(`[data-paren="${key}"]`);
+                if(parenBtn){
+                    e.preventDefault();
+                    parenBtn.click();
+                    parenBtn.classList.add('active');
+                    setTimeout(() => parenBtn.classList.remove('active'), 100);
+                }
+                return;
+            }
+
             const button = document.querySelector(`[data-key="${key}"]`);
             if(button) {
                 e.preventDefault();
