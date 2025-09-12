@@ -102,9 +102,11 @@
     <main class="grid grid-cols-1 xl:grid-cols-3 gap-8 w-full max-w-7xl mx-auto xl:items-start">
         <!-- Cột 1: Máy tính -->
         <div class="calculator container-bg w-full max-w-md mx-auto p-4 sm:p-6 rounded-3xl space-y-4">
-            <div class="display group relative w-full rounded-xl p-6 text-right overflow-hidden">
+            <div class="display group relative w-full rounded-xl p-6 text-right overflow-hidden" title="Nhấp chuột phải để dán">
                 <div class="absolute top-2 left-4 text-lg font-bold" id="memory-indicator"></div>
-                <div id="full-expression-display" class="text-2xl h-12 opacity-70 whitespace-nowrap overflow-hidden text-ellipsis">&nbsp;</div>
+                <div id="full-expression-display" class="text-2xl h-12 opacity-70 whitespace-nowrap overflow-hidden ">&nbsp;</div>
+<input type="text" id="expression-input" class="hidden absolute top-0 left-0 w-full h-full p-6 text-right text-2xl bg-transparent border-none outline-none" style="padding-top: 2.7rem; color: var(--text-display); font-family: 'Courier New', Courier, monospace; font-weight: normal; opacity: 0.7;"/>
+
                 <div id="current-operand" class="text-5xl font-bold break-words">0</div>
                 <button id="copy-btn" class="absolute top-1/2 right-3 -translate-y-1/2 p-2 rounded-full hover:bg-black/10 transition-opacity duration-300 opacity-0 group-hover:opacity-100" title="Sao chép kết quả"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
             </div>
@@ -117,7 +119,7 @@
                 <button data-paren="(" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">(</button>
                 <button data-paren=")" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">)</button>
                 <button data-key="%" data-action="percent" class="btn btn-purple text-xl font-semibold w-full h-14 rounded-full">%</button>
-                <button data-action="clear-entry" class="btn btn-pink text-xl font-semibold w-full h-14 rounded-full">CE</button>
+                <button data-key="Delete" data-action="clear-entry" class="btn btn-pink text-xl font-semibold w-full h-14 rounded-full">CE</button>
 
                 <button data-key="7" data-number="7" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">7</button>
                 <button data-key="8" data-number="8" class="btn btn-cream text-2xl font-semibold w-full h-16 sm:h-20 rounded-full">8</button>
@@ -229,14 +231,20 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- GLOBAL ELEMENTS ---
+        const expressionInputEl = document.getElementById('expression-input'); // Biến mới
+
         const currentOperandEl = document.getElementById('current-operand');
         const fullExpressionEl = document.getElementById('full-expression-display');
         const calculator = document.querySelector('.calculator');
+        const displayEl = document.querySelector('.display');
+        const copyBtn = document.getElementById('copy-btn');
         
         // --- CALCULATOR STATE ---
         let currentOperand = '0';
         let fullExpression = [];
         let shouldResetScreen = false;
+        let lastCalculation = { operator: null, operand: null };
+let isEditingExpression = false; // Biến trạng thái mới
 
         // --- MEMORY STATE ---
         let memory = 0;
@@ -262,17 +270,51 @@
                 toast.remove();
             }, 3000);
         };
-        
+        const enterEditMode = () => {
+    isEditingExpression = true;
+    const currentExpression = fullExpressionEl.innerText;
+    expressionInputEl.value = currentExpression;
+    
+    fullExpressionEl.classList.add('hidden');
+    expressionInputEl.classList.remove('hidden');
+    expressionInputEl.focus();
+    expressionInputEl.select();
+};
+// HÀM MỚI: Tiền xử lý chuỗi biểu thức do người dùng nhập
+const sanitizeAndTokenizeExpression = (inputStr) => {
+    // 1. Chuẩn hóa các toán tử và định dạng số
+    let sanitized = inputStr
+        .replace(/×/g, '*') // Đổi toán tử '×' thành '*'
+        .replace(/÷/g, '/') // Đổi toán tử '÷' thành '/'
+        .replace(/\./g, '')  // Xóa tất cả dấu chấm ngăn cách hàng nghìn
+        .replace(/,/g, '.'); // Đổi dấu phẩy thập phân thành dấu chấm
+
+    // 2. Thêm khoảng trắng xung quanh các toán tử và dấu ngoặc để dễ dàng phân tách
+    // Ví dụ: "(5+3)*2" -> " ( 5 + 3 ) * 2 "
+    sanitized = sanitized.replace(/([+\-*/()])/g, ' $1 ');
+
+    // 3. Phân tách chuỗi thành một mảng các "token" (số, toán tử)
+    // và loại bỏ các khoảng trắng thừa.
+    return sanitized.split(' ').filter(token => token.length > 0);
+};
+
+const exitEditMode = () => {
+    isEditingExpression = false;
+    expressionInputEl.classList.add('hidden');
+    fullExpressionEl.classList.remove('hidden');
+    updateDisplay();
+};
         const copyToClipboard = (text) => {
+            const unformattedText = text.replace(/\./g, '').replace(/,/g, '.');
             const textArea = document.createElement("textarea");
-            textArea.value = text;
+            textArea.value = unformattedText;
             textArea.style.position = "fixed";
             textArea.style.left = "-999999px";
             document.body.appendChild(textArea);
             textArea.select();
             try {
                 document.execCommand('copy');
-                showToast('Đã sao chép kết quả!');
+                showToast('Đã sao chép!');
             } catch (err) {
                 console.error('Không thể sao chép', err);
                 showToast('Lỗi sao chép!');
@@ -299,144 +341,346 @@
         };
 
         // --- DISPLAY UPDATE ---
-        const updateDisplay = () => {
-            currentOperandEl.innerText = formatNumber(currentOperand);
-            adjustFontSize();
-            
-            const expressionText = fullExpression.map(item => {
-                if (!isNaN(parseFloat(item.replace(',', '.')))) {
-                    return formatNumber(item);
-                }
-                return item;
-            }).join(' ');
+   const updateDisplay = () => {
+    currentOperandEl.innerText = formatNumber(currentOperand);
+    adjustFontSize();
+    
+    // Tạo chuỗi biểu thức đầy đủ như cũ
+    const expressionText = fullExpression.map(item => {
+        if (!isNaN(parseFloat(item.replace(',', '.')))) {
+            return formatNumber(item);
+        }
+        return item;
+    }).join(' ');
 
-            fullExpressionEl.innerText = expressionText;
-            
-            // Add tooltip if text is overflowing
-            if (fullExpressionEl.scrollWidth > fullExpressionEl.clientWidth) {
-                fullExpressionEl.title = expressionText;
-            } else {
-                fullExpressionEl.title = '';
-            }
+    // --- BẮT ĐẦU LOGIC XỬ LÝ TRÀN DÒNG (OVERFLOW) ---
 
-            memoryIndicator.innerText = memory !== 0 ? 'M' : '';
-        };
+    // Gán tạm thời văn bản đầy đủ vào để đo chiều rộng
+    fullExpressionEl.innerText = expressionText;
+
+    // Kiểm tra xem chiều rộng của văn bản có lớn hơn chiều rộng của khung chứa không
+    if (fullExpressionEl.scrollWidth > fullExpressionEl.clientWidth) {
+        // Nếu có, đặt tooltip là toàn bộ biểu thức để người dùng có thể xem khi cần
+        fullExpressionEl.title = expressionText;
+
+        // Bắt đầu vòng lặp: Cắt dần ký tự từ bên trái cho đến khi chuỗi nằm vừa trong khung
+        let truncatedText = expressionText;
+        while (fullExpressionEl.scrollWidth > fullExpressionEl.clientWidth) {
+            truncatedText = truncatedText.substring(1); // Xóa ký tự đầu tiên
+            fullExpressionEl.innerText = truncatedText; // Cập nhật lại để đo tiếp
+        }
+        
+        // Sau khi chuỗi đã vừa, thêm dấu "…" vào đầu để hoàn thiện
+        fullExpressionEl.innerText = `… ${truncatedText}`;
+    } else {
+        // Nếu không tràn, đảm bảo không có tooltip
+        fullExpressionEl.title = '';
+        // Và hiển thị văn bản bình thường
+        fullExpressionEl.innerText = expressionText;
+    }
+    // --- KẾT THÚC LOGIC MỚI ---
+
+    memoryIndicator.innerText = memory !== 0 ? 'M' : '';
+};
 
         // --- CALCULATOR LOGIC ---
-        const appendNumber = (number) => {
-            if (shouldResetScreen) {
-                currentOperand = '0';
-                shouldResetScreen = false;
-            }
-            if (number === '.' && currentOperand.includes(',')) return;
-            if (currentOperand === '0' && number !== '.') currentOperand = '';
-            if (currentOperand.length > 20) return;
-            currentOperand += (number === '.' ? ',' : number.toString());
-        };
+const appendNumber = (number) => {
+    // --- SỬA LỖI: Thêm phép nhân tự động ---
+    const lastItem = fullExpression[fullExpression.length - 1];
+    if (lastItem === ')') {
+       chooseOperation('×');
+    }
+    // ------------------------------------
 
-        const chooseOperation = (operator) => {
-            if (currentOperand === 'Lỗi') { allClear(); return; }
+    if (shouldResetScreen) {
+        fullExpression = [];
+        currentOperand = '0';
+        shouldResetScreen = false;
+    }
+    
+    if (number === '.' && currentOperand.includes(',')) return;
+    if (currentOperand === '0' && number !== '.') currentOperand = '';
+    // Xử lý dấu trừ cho số âm
+    if (currentOperand === '-' && number === '.') {
+        currentOperand = '-0,';
+        return;
+    }
+    if (currentOperand.length > 20) return;
+    currentOperand += (number === '.' ? ',' : number.toString());
+};
 
-            const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
-            
-            if (['+', '-', '×', '÷'].includes(lastItem) && currentOperand === '0') {
-                fullExpression[fullExpression.length - 1] = operator;
-            } else if (lastItem === ')') {
-                fullExpression.push(operator);
-            } else {
-                fullExpression.push(currentOperand);
-                fullExpression.push(operator);
-            }
+//     const chooseOperation = (operator) => {
+//     if (currentOperand === 'Lỗi') { allClear(); return; }
+//     if (operator === '-' && currentOperand === '0' && (fullExpression.length === 0 || ['(','+','-','×','÷'].includes(fullExpression[fullExpression.length-1]))) {
+//         currentOperand = '-';
+//         shouldResetScreen = false;
+//         return;
+//     }
 
-            currentOperand = '0';
-            shouldResetScreen = false;
-        };
+//     // --- Bắt đầu đoạn code sửa ---
+//     if (shouldResetScreen) {
+//         fullExpression = [currentOperand];
+//     } else {
+//         const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+//         if (lastItem === ')') {
+//             // Không làm gì, vì giá trị đã được tính và nằm trong currentOperand
+//         } else if (['+', '-', '×', '÷'].includes(lastItem) && (currentOperand === '0' || currentOperand === '')) {
+//             // Chỉ thay đổi toán tử, không thêm toán hạng
+//         } else {
+//             fullExpression.push(currentOperand);
+//         }
+//     }
+    
+//     const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+//     if (['+', '-', '×', '÷'].includes(lastItem)) {
+//         fullExpression[fullExpression.length - 1] = operator;
+//     } else {
+//         fullExpression.push(operator);
+//     }
+//     // --- Kết thúc đoạn code sửa ---
 
-        const handleParenthesis = (paren) => {
-            if (paren === '(') {
-                const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+//     currentOperand = '0';
+//     shouldResetScreen = false;
+// };
 
-                if (currentOperand !== '0' && !shouldResetScreen) {
-                    fullExpression.push(currentOperand);
-                    fullExpression.push('×');
-                } else if (lastItem === ')' || (!['+', '-', '×', '÷', '('].includes(lastItem) && lastItem !== null)) {
-                    fullExpression.push('×');
-                }
-                
-                fullExpression.push('(');
-                currentOperand = '0';
-                shouldResetScreen = false;
-            } else { // paren is ')'
-                const openParens = fullExpression.filter(x => x === '(').length;
-                const closeParens = fullExpression.filter(x => x === ')').length;
-                if (openParens <= closeParens) return;
+const chooseOperation = (operator) => {
+    if (currentOperand === 'Lỗi') { allClear(); return; }
+    
+    // Xử lý nhập số âm (unary minus)
+    if (operator === '-' && currentOperand === '0' && (fullExpression.length === 0 || ['(','+','-','×','÷'].includes(fullExpression[fullExpression.length - 1]))) {
+        currentOperand = '-';
+        shouldResetScreen = false;
+        return;
+    }
 
-                const lastItem = fullExpression[fullExpression.length - 1];
-                if (['+', '-', '×', '÷', '('].includes(lastItem)) return;
+    // --- BẮT ĐẦU LOGIC TỐI ƯU ---
 
-                fullExpression.push(currentOperand);
-                fullExpression.push(')');
-                currentOperand = '0';
-                shouldResetScreen = true;
-            }
-        };
+    // 1. Xử lý trường hợp người dùng chỉ muốn đổi toán tử (ví dụ: gõ "5 *", rồi đổi ý thành "+")
+    const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+    if (['+', '-', '×', '÷'].includes(lastItem) && currentOperand === '0') {
+        fullExpression[fullExpression.length - 1] = operator;
+        updateDisplay(); // Cập nhật ngay để người dùng thấy sự thay đổi
+        return; 
+    }
+
+    // 2. Thêm số hiện tại vào biểu thức
+    // Nếu màn hình vừa được reset (sau dấu = hoặc dấu ')'), biểu thức mới sẽ bắt đầu bằng kết quả cũ.
+    if (shouldResetScreen) {
+        fullExpression = [currentOperand];
+    } else {
+        // Ngược lại, chỉ cần thêm số vừa nhập vào chuỗi.
+        fullExpression.push(currentOperand);
+    }
+
+    // 3. Thêm toán tử mới vào
+    fullExpression.push(operator);
+    
+    // 4. Reset trạng thái để chuẩn bị nhập số tiếp theo
+    currentOperand = '0';
+    shouldResetScreen = false;
+    // --- KẾT THÚC LOGIC TỐI ƯU ---
+};
+const handleParenthesis = (paren) => {
+    const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+    if (paren === '(') {
+        if ((currentOperand !== '0' && !shouldResetScreen) || lastItem === ')') {
+            if (currentOperand !== '0') fullExpression.push(currentOperand);
+            fullExpression.push('×');
+        }
+        fullExpression.push('(');
+        currentOperand = '0'; // Reset để nhập số trong ngoặc
+    } else { // paren is ')'
+        const openParens = fullExpression.filter(x => x === '(').length;
+        const closeParens = fullExpression.filter(x => x === ')').length;
+        if (openParens <= closeParens) return;
+        if (['+', '-', '×', '÷', '('].includes(lastItem) && (currentOperand === '0' || currentOperand === '')) return;
+
+        fullExpression.push(currentOperand);
+        fullExpression.push(')');
         
+        // --- SỬA LỖI: Tính ngay kết quả trong ngoặc ---
+        const subResult = evaluateExpression(fullExpression);
+        currentOperand = (subResult === 'Lỗi') 
+            ? 'Lỗi' 
+            : subResult.toString().replace('.', ',');
+        // ---------------------------------------------
+        
+        shouldResetScreen = true;
+    }
+};
+        
+      const handlePercent = () => {
+    if (currentOperand === '0' || currentOperand === 'Lỗi') return;
+
+    let value = parseFloat(currentOperand.replace(',', '.'));
+    
+    if (fullExpression.length > 0) {
+        const lastOperator = fullExpression[fullExpression.length - 1];
+        
+        // --- SỬA LỖI: Sửa logic tìm giá trị cơ sở ---
+        let baseValue = 'Lỗi'; 
+        const tempExpression = fullExpression.slice(0, -1); 
+        const lastNumberItem = [...tempExpression].reverse().find(item => !isNaN(parseFloat(item.replace(',', '.'))));
+
+        if (lastNumberItem) {
+            baseValue = parseFloat(lastNumberItem.replace(',', '.'));
+        }
+        // ------------------------------------------
+        
+        if (baseValue !== 'Lỗi' && (lastOperator === '+' || lastOperator === '-')) {
+            value = (baseValue * value) / 100;
+        } else {
+            value = value / 100;
+        }
+    } else {
+        value = value / 100;
+    }
+
+    currentOperand = value.toString().replace('.', ',');
+};
+
         const evaluateExpression = (expressionArr) => {
+             if (expressionArr.length === 0) return 0;
              try {
-                // Auto-close any open parentheses
-                let openParens = expressionArr.filter(x => x === '(').length;
-                let closeParens = expressionArr.filter(x => x === ')').length;
+                let tempArr = [...expressionArr];
+                const lastItem = tempArr[tempArr.length - 1];
+                if (['+', '-', '×', '÷'].includes(lastItem)) {
+                   tempArr.pop(); 
+                }
+
+                let openParens = tempArr.filter(x => x === '(').length;
+                let closeParens = tempArr.filter(x => x === ')').length;
                 while(openParens > closeParens){
-                    expressionArr.push(')');
+                    tempArr.push(')');
                     closeParens++;
                 }
 
-                let expressionStr = expressionArr.join(' ')
+                let expressionStr = tempArr.join(' ')
                     .replace(/÷/g, '/')
                     .replace(/×/g, '*')
-                    .replace(/%/g, '/100')
                     .replace(/\./g, '')
                     .replace(/,/g, '.');
                 
-                return new Function('return ' + expressionStr)();
+                const result = new Function('return ' + expressionStr)();
+                if (!isFinite(result)) return 'Lỗi';
+                return result;
             } catch (error) {
-                return 'Error';
+                console.error("Evaluation Error:", error);
+                return 'Lỗi';
             }
         }
 
-        const compute = () => {
-            const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
-            if (fullExpression.length === 0 && currentOperand === '0') return;
+     // Hàm mới: Tính toán từ một chuỗi biểu thức tự do
+const computeFromString = (expressionString) => {
+    if (!expressionString) {
+        exitEditMode();
+        return;
+    }
+    
+    try {
+        // 1. Sử dụng bộ tiền xử lý mới để phân tích chuỗi nhập vào
+        const expressionArr = sanitizeAndTokenizeExpression(expressionString);
 
-            // Do not push the current operand if the expression just ended with a parenthesis
-            if (lastItem !== ')') {
-                 fullExpression.push(currentOperand);
-            }
-            
-            const expressionToEvaluate = [...fullExpression];
-            const result = evaluateExpression(expressionToEvaluate);
+        // Lấy lại chuỗi đã được chuẩn hóa để hiển thị trong lịch sử
+        const finalExpressionStr = expressionArr.join(' ');
+        const result = evaluateExpression(expressionArr);
 
-            if (result !== 'Error' && result !== undefined) {
-                 const finalExpressionStr = expressionToEvaluate.map(item => {
-                    if (!isNaN(parseFloat(item.replace(',', '.')))) return formatNumber(item);
-                    return item;
-                 }).join(' ');
-                 const formattedResult = result.toString().replace('.', ',');
-                 addHistory(`${finalExpressionStr} =`, formatNumber(formattedResult));
-                 currentOperand = formattedResult;
-            } else {
-                currentOperand = 'Lỗi';
-            }
-            
-            fullExpression = [];
-            shouldResetScreen = true;
-        };
+        if (result !== 'Lỗi' && result !== undefined) {
+            const formattedResult = result.toString().replace('.', ',');
+            addHistory(`${finalExpressionStr.replace(/\*/g, '×').replace(/\//g, '÷')} =`, formatNumber(formattedResult));
+            currentOperand = formattedResult;
+        } else {
+            currentOperand = 'Lỗi';
+            lastCalculation = { operator: null, operand: null };
+        }
+        
+        fullExpression = [];
+        shouldResetScreen = true;
+    } catch (error) {
+        console.error("Lỗi nghiêm trọng khi tính toán chuỗi:", error);
+        currentOperand = 'Lỗi';
+        fullExpression = [];
+        shouldResetScreen = true;
+    } finally {
+        // 2. Đảm bảo luôn thoát chế độ chỉnh sửa, chống kẹt
+        exitEditMode();
+    }
+};
+
+
+// Hàm compute cũ được sửa đổi để tương thích
+const compute = () => {
+    let expressionToEvaluate;
+
+    if (shouldResetScreen && lastCalculation.operator && lastCalculation.operand) {
+        expressionToEvaluate = [currentOperand, lastCalculation.operator, lastCalculation.operand];
+    } else {
+        if (fullExpression.length === 0 && currentOperand === '0') return;
+        if (!shouldResetScreen) {
+            fullExpression.push(currentOperand);
+        }
+        
+        const lastOperatorIndex = fullExpression.findLastIndex(item => ['+', '-', '×', '÷'].includes(item));
+        if (lastOperatorIndex > -1 && lastOperatorIndex < fullExpression.length - 1) {
+            lastCalculation.operator = fullExpression[lastOperatorIndex];
+            lastCalculation.operand = fullExpression.slice(lastOperatorIndex + 1).join('');
+        } else {
+            lastCalculation = { operator: null, operand: null };
+        }
+        expressionToEvaluate = [...fullExpression];
+    }
+    
+    const result = evaluateExpression(expressionToEvaluate);
+    const finalExpressionStr = expressionToEvaluate.map(item => {
+        if (!isNaN(parseFloat(item.replace(',', '.')))) return formatNumber(item);
+        return item;
+    }).join(' ');
+
+    if (result !== 'Lỗi' && result !== undefined) {
+         const formattedResult = result.toString().replace('.', ',');
+         addHistory(`${finalExpressionStr} =`, formatNumber(formattedResult));
+         currentOperand = formattedResult;
+    } else {
+        currentOperand = 'Lỗi';
+        lastCalculation = { operator: null, operand: null };
+    }
+    
+    fullExpression = [];
+    shouldResetScreen = true;
+};
+// Kích hoạt chế độ chỉnh sửa khi nhấp vào màn hình biểu thức
+fullExpressionEl.addEventListener('click', () => {
+    // Chỉ cho phép chỉnh sửa khi có biểu thức
+    if (fullExpression.length > 0) {
+        enterEditMode();
+    }
+});
+
+// Xử lý sự kiện trên ô nhập liệu
+expressionInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        computeFromString(e.target.value);
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        exitEditMode();
+    }
+});
+
+// Thoát và tính toán khi người dùng click ra ngoài
+expressionInputEl.addEventListener('blur', (e) => {
+    if (isEditingExpression) {
+        computeFromString(e.target.value);
+    }
+});
 
         const allClear = () => {
             currentOperand = '0';
             fullExpression = [];
             shouldResetScreen = false;
             memory = 0;
+            localStorage.removeItem('calcMemory');
+            lastCalculation = { operator: null, operand: null };
             updateDisplay();
         };
         
@@ -452,6 +696,7 @@
             } else {
                 currentOperand = '0';
             }
+            updateDisplay();
         };
 
         // --- HISTORY LOGIC ---
@@ -469,7 +714,7 @@
             }
             historyListEl.innerHTML = history.map(item => `
                 <div class="history-item p-2 rounded-lg cursor-pointer" data-result="${item.result}">
-                    <div class="text-sm opacity-70">${item.expression}</div>
+                    <div class="text-sm opacity-70">${item.expression.replace(/\*/g, '×').replace(/\//g, '÷')}</div>
                     <div class="font-bold text-lg text-right">${item.result}</div>
                 </div>
             `).join('');
@@ -481,44 +726,57 @@
                     copyToClipboard(item.dataset.result);
                 });
             });
+            historyListEl.scrollTop = 0;
         };
         
-        const useHistoryValue = (value) => {
-             currentOperand = value.replace(/\./g, '').replace(',', '.');
-             fullExpression = [];
-             updateDisplay();
-        }
-        
-        document.getElementById('clear-history').addEventListener('click', () => {
-            history = [];
-            localStorage.removeItem('calcHistory');
-            updateHistoryDisplay();
-        });
+const useHistoryValue = (value) => {
+    const cleanedValue = value.replace(/\./g, '').replace(',', ',');
+    const lastItem = fullExpression.length > 0 ? fullExpression[fullExpression.length - 1] : null;
+
+    // --- LOGIC MỚI: Kiểm tra xem có đang tính dở hay không ---
+    // Nếu biểu thức không rỗng VÀ mục cuối cùng là một toán tử...
+    if (fullExpression.length > 0 && ['+', '-', '×', '÷', '('].includes(lastItem)) {
+        // ...thì chỉ cập nhật số hiện tại để tiếp tục phép tính.
+        currentOperand = cleanedValue;
+    } else {
+        // Ngược lại, bắt đầu một phép tính mới như cũ.
+        currentOperand = cleanedValue;
+        fullExpression = [];
+        shouldResetScreen = true; 
+    }
+    // --------------------------------------------------------
+
+    updateDisplay();
+};
 
         // --- MEMORY LOGIC ---
-        const handleMemory = (action) => {
-            let val = parseFloat(currentOperand.replace(/\./g, '').replace(',', '.'));
+const handleMemory = (action) => {
+    let val = parseFloat(currentOperand.replace(/\./g, '').replace(',', '.'));
 
-            switch(action) {
-                case 'mc': 
-                    memory = 0; 
-                    break;
-                case 'mr': 
-                    if (memory !== 0) {
-                        currentOperand = memory.toString().replace('.', ','); 
-                        shouldResetScreen = true; 
-                    }
-                    break;
-                case 'm+': 
-                    if (!isNaN(val)) memory += val; 
-                    break;
-                case 'm-': 
-                    if (!isNaN(val)) memory -= val; 
-                    break;
+    switch(action) {
+        case 'mc': 
+            memory = 0; 
+            break;
+        case 'mr': 
+            if (memory !== 0) {
+                currentOperand = memory.toString().replace('.', ','); 
+                // --- SỬA LỖI: Xóa dòng `shouldResetScreen = true` ---
+                // Dòng này đã khiến phép tính bị reset một cách không mong muốn.
+                // Giờ đây, việc gọi MR chỉ thay thế số hiện tại, giữ nguyên biểu thức.
             }
-            localStorage.setItem('calcMemory', memory);
-            updateDisplay();
-        };
+            break;
+        case 'm+': 
+            if (!isNaN(val)) memory += val; 
+            shouldResetScreen = true; // Sau M+, số tiếp theo nên là phép tính mới
+            break;
+        case 'm-': 
+            if (!isNaN(val)) memory -= val; 
+            shouldResetScreen = true; // Tương tự M+
+            break;
+    }
+    localStorage.setItem('calcMemory', memory);
+    updateDisplay(); 
+};
         
         // --- TABS LOGIC ---
         const tabs = document.querySelectorAll('.tab-btn');
@@ -544,6 +802,33 @@
         });
 
         // --- EVENT LISTENERS ---
+        copyBtn.addEventListener('click', () => {
+            copyToClipboard(currentOperandEl.innerText);
+        });
+
+        displayEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(text => {
+                    const sanitizedText = text.replace(/\./g, '').replace(',', '.');
+                    if (!isNaN(parseFloat(sanitizedText))) {
+                        currentOperand = sanitizedText.replace('.', ',');
+                        shouldResetScreen = true;
+                        fullExpression = [];
+                        updateDisplay();
+                        showToast('Đã dán!');
+                    } else {
+                        showToast('Clipboard không chứa số hợp lệ.');
+                    }
+                }).catch(err => {
+                    console.error('Lỗi khi dán: ', err);
+                    showToast('Không thể dán. Vui lòng cấp quyền truy cập clipboard.');
+                });
+            } else {
+                showToast('Trình duyệt không hỗ trợ dán.');
+            }
+        });
+        
         calculator.addEventListener('click', (e) => {
             const { number, operator, action, memory: memAction, paren } = e.target.dataset;
             if (number) { appendNumber(number); updateDisplay(); }
@@ -553,12 +838,7 @@
             if (action === 'all-clear') { allClear(); }
             if (action === 'clear-entry') { clearEntry(); }
             if (action === 'decimal') { appendNumber('.'); updateDisplay(); }
-            if (action === 'percent') {
-                if(currentOperand !== '0'){
-                     currentOperand = (parseFloat(currentOperand.replace(/\./g, '').replace(',', '.')) / 100).toString().replace('.', ',');
-                }
-                updateDisplay();
-            }
+            if (action === 'percent') { handlePercent(); updateDisplay(); }
             if(memAction) { handleMemory(memAction); }
         });
         
@@ -571,7 +851,6 @@
             if (key === 'Backspace') {
                 e.preventDefault();
                 deleteLastDigit();
-                updateDisplay();
                 return;
             }
 
